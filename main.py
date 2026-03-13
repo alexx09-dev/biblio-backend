@@ -36,6 +36,7 @@ origins_permitidos = [
     "http://localhost:4200",   # Angular (ng serve usa el puerto 4200 por defecto)
     "http://localhost:5173",   # React + Vite (vite dev server usa 5173 por defecto)
     "http://localhost:3000",   # React + Create React App (puerto 3000)
+    "https://biblio-react-sandy.vercel.app/"  # URL PUBLICA
 ]
 
 app.add_middleware(
