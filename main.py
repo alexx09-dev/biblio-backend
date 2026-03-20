@@ -69,9 +69,13 @@ async def startup():
     logger.info("🚀 Biblioteca Personal API iniciando...")
     logger.info("📚 Versión: 2.0.0")
     logger.info("📖 Documentación disponible en: /docs")
-    logger.info("🌐 CORS habilitado para:")           # [NUEVO]
-    for origen in origins_permitidos:                 # [NUEVO]
-        logger.info(f"   → {origen}")                 # [NUEVO]
+    logger.info(f"🔌 DB_HOST: {settings.DB_HOST}")      # ← AGREGA ESTO
+    logger.info(f"🔌 DB_PORT: {settings.DB_PORT}")      # ← AGREGA ESTO
+    logger.info(f"🔌 DB_USER: {settings.DB_USER}")      # ← AGREGA ESTO
+    logger.info(f"🔌 DB_NAME: {settings.DB_NAME}")      # ← AGREGA ESTO
+    logger.info("🌐 CORS habilitado para:")
+    for origen in origins_permitidos:
+        logger.info(f"   → {origen}")
     logger.info("=" * 50)
 
 
