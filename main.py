@@ -4,7 +4,8 @@
 
 from fastapi import FastAPI
 from fastapi.exceptions import HTTPException, RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware  # [NUEVO]
+from fastapi.middleware.cors import CORSMiddleware
+from config import settings  # ← AGREGADO
 from exceptions.handlers import (
     http_exception_handler,
     validation_exception_handler,
@@ -24,27 +25,21 @@ app = FastAPI(
 )
 
 # ---------------------------------------------------------------------------
-# [NUEVO] Configuración de CORS
-# Debe registrarse ANTES que los routers para que aplique a todas las rutas
-#
-# allow_origins: lista de dominios del frontend autorizados a consumir la API
-# allow_methods: métodos HTTP permitidos desde el frontend
-# allow_headers: headers HTTP que el frontend puede enviar
-# allow_credentials: permite enviar cookies y headers de autenticación
+# Configuración de CORS
 # ---------------------------------------------------------------------------
 origins_permitidos = [
     "https://biblio-react-sandy.vercel.app",  # URL PUBLICA
-    "http://localhost:4200",   # Angular (ng serve usa el puerto 4200 por defecto)
-    "http://localhost:5173",   # React + Vite (vite dev server usa 5173 por defecto)
-    "http://localhost:3000",   # React + Create React App (puerto 3000)
+    "http://localhost:4200",
+    "http://localhost:5173",
+    "http://localhost:3000",
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins_permitidos,
     allow_credentials=True,
-    allow_methods=["*"],       # Permite GET, POST, PUT, DELETE, OPTIONS, etc.
-    allow_headers=["*"],       # Permite Content-Type, Authorization, etc.
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ---------------------------------------------------------------------------
@@ -59,7 +54,6 @@ app.add_exception_handler(Exception, generic_exception_handler)
 # ---------------------------------------------------------------------------
 app.include_router(libros_router)
 
-
 # ---------------------------------------------------------------------------
 # Evento de inicio de la aplicación
 # ---------------------------------------------------------------------------
@@ -69,15 +63,14 @@ async def startup():
     logger.info("🚀 Biblioteca Personal API iniciando...")
     logger.info("📚 Versión: 2.0.0")
     logger.info("📖 Documentación disponible en: /docs")
-    logger.info(f"🔌 DB_HOST: {settings.DB_HOST}")      # ← AGREGA ESTO
-    logger.info(f"🔌 DB_PORT: {settings.DB_PORT}")      # ← AGREGA ESTO
-    logger.info(f"🔌 DB_USER: {settings.DB_USER}")      # ← AGREGA ESTO
-    logger.info(f"🔌 DB_NAME: {settings.DB_NAME}")      # ← AGREGA ESTO
+    logger.info(f"🔌 DB_HOST: {settings.DB_HOST}")
+    logger.info(f"🔌 DB_PORT: {settings.DB_PORT}")
+    logger.info(f"🔌 DB_USER: {settings.DB_USER}")
+    logger.info(f"🔌 DB_NAME: {settings.DB_NAME}")
     logger.info("🌐 CORS habilitado para:")
     for origen in origins_permitidos:
         logger.info(f"   → {origen}")
     logger.info("=" * 50)
-
 
 # ---------------------------------------------------------------------------
 # Endpoint de prueba
