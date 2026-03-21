@@ -11,11 +11,10 @@ class Settings(BaseSettings):
     y valida que tengan el tipo correcto al arrancar la aplicación.
     """
     # --- Variables de conexión a MySQL ---
-    # Todas son obligatorias (no tienen valor por defecto)
     DB_USER: str
     DB_PASSWORD: str
     DB_HOST: str
-    DB_PORT: int        # Pydantic convierte automáticamente el string "3306" a int
+    DB_PORT: int
     DB_NAME: str
 
     # --- Metadata de la aplicación ---
@@ -25,14 +24,10 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def DATABASE_URL(self) -> str:
-        """
-        Construye la URL de conexión a MySQL a partir de las variables individuales.
-        Se calcula automáticamente, no se define en el .env.
-        Ejemplo resultado: mysql+pymysql://root:admin@localhost:3306/biblioteca_db
-        """
         return (
             f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+            f"?auth_plugin=mysql_native_password"  # ← AGREGADO
         )
 
     model_config = {
@@ -41,8 +36,4 @@ class Settings(BaseSettings):
         "case_sensitive": True,
     }
 
-# ---------------------------------------------------------------------------
-# Instancia única de Settings — se importa en todo el proyecto
-# Al importar este módulo, Pydantic lee y valida las variables inmediatamente
-# ---------------------------------------------------------------------------
 settings = Settings()
