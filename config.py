@@ -27,7 +27,6 @@ class Settings(BaseSettings):
         return (
             f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-            f"?auth_plugin=mysql_native_password"  # ← AGREGADO
         )
 
     model_config = {
