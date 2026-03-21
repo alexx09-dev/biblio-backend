@@ -1,11 +1,21 @@
 # database.py
 # Configuración del motor de base de datos y sesiones SQLAlchemy
 # La URL de conexión viene de config.py (no se hardcodea aquí)
-
+import os
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from config import settings
 
+# ---------------------------------------------------------------------------
+# Debug temporal - ver qué variables está leyendo Render
+# ---------------------------------------------------------------------------
+print("=== VARIABLES DE ENTORNO ===")
+print(f"DB_USER desde os.environ: {os.environ.get('DB_USER', 'NO ENCONTRADO')}")
+print(f"DB_HOST desde os.environ: {os.environ.get('DB_HOST', 'NO ENCONTRADO')}")
+print(f"DB_PORT desde os.environ: {os.environ.get('DB_PORT', 'NO ENCONTRADO')}")
+print(f"DB_NAME desde os.environ: {os.environ.get('DB_NAME', 'NO ENCONTRADO')}")
+print(f"DATABASE_URL construida: {settings.DATABASE_URL}")
+print("============================")
 
 # ---------------------------------------------------------------------------
 # Motor de conexión a MySQL
@@ -28,14 +38,12 @@ SessionLocal = sessionmaker(
     bind=engine,
 )
 
-
 # ---------------------------------------------------------------------------
 # Clase base para todos los modelos ORM del proyecto
 # Cada modelo (ej: Libro) heredará de esta clase
 # ---------------------------------------------------------------------------
 class Base(DeclarativeBase):
     pass
-
 
 # ---------------------------------------------------------------------------
 # Dependencia de FastAPI para inyectar la sesión de BD en los endpoints
@@ -51,7 +59,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
 
 # ---------------------------------------------------------------------------
 # Prueba rápida de conexión
