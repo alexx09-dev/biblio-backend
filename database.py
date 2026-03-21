@@ -25,6 +25,9 @@ print("============================")
 engine = create_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,
+    connect_args={
+        "ssl_disabled": True,
+    }
 )
 
 # ---------------------------------------------------------------------------
