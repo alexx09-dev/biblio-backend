@@ -12,6 +12,7 @@ from exceptions.handlers import (
 )
 from logger import logger
 from api.libros import router as libros_router
+from api.auth import router as auth_router      # ← Importa el router de autenticación
 import os
 
 # ---------------------------------------------------------------------------
@@ -57,6 +58,7 @@ app.add_exception_handler(Exception, generic_exception_handler)
 # Registro de routers
 # ---------------------------------------------------------------------------
 app.include_router(libros_router)
+app.include_router(auth_router)   # ← Registra todos los endpoints /api/auth/...
 
 # ---------------------------------------------------------------------------
 # Evento de inicio de la aplicación

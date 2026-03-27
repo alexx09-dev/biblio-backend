@@ -3,9 +3,10 @@
 # Separar esquemas por responsabilidad evita exponer datos internos
 # y permite validaciones distintas para crear vs actualizar vs leer
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, EmailStr
 from typing import Optional
 import datetime
+from datetime import date
 
 
 class LibroBase(BaseModel):
@@ -129,3 +130,37 @@ class LibroRead(LibroBase):
 
     # Sintaxis Pydantic v2 — reemplaza: class Config: orm_mode = True
     model_config = ConfigDict(from_attributes=True)
+
+
+class UsuarioCreate(BaseModel):
+    nombre: str                            # Nombre completo del usuario
+    email: EmailStr                        # Valida automáticamente que sea un email válido
+    password: str                          # Contraseña en texto plano — se hashea en el servicio
+    fecha_nacimiento: Optional[date] = None  # Opcional al registrarse
+
+class UsuarioLogin(BaseModel):
+    email: EmailStr                        # Email para identificar al usuario
+    password: str                          # Contraseña para verificar identidad
+
+class UsuarioRead(BaseModel):
+    id: int                                # ID único del usuario
+    nombre: str                            # Nombre para mostrar en pantalla
+    email: str                             # Email del usuario
+    fecha_nacimiento: Optional[date] = None  # Solo lectura, nunca se puede editar
+    foto_perfil: Optional[str] = None      # URL de la foto de perfil
+    avatar_config: Optional[str] = None    # JSON con configuración del avatar
+    bio: Optional[str] = None             # Descripción personal del usuario
+
+    model_config = {"from_attributes": True}  # Permite convertir objetos ORM a este schema
+
+class UsuarioUpdate(BaseModel):
+    nombre: Optional[str] = None           # Puede cambiar su nombre
+    foto_perfil: Optional[str] = None      # Puede cambiar su foto
+    avatar_config: Optional[str] = None    # Puede cambiar su avatar
+    bio: Optional[str] = None             # Puede cambiar su bio
+    # fecha_nacimiento NO está — esto es lo que impide que se pueda modificar
+
+class TokenResponse(BaseModel):
+    access_token: str                      # El token JWT que el frontend guarda
+    token_type: str = "bearer"             # Tipo estándar de token, siempre "bearer"
+    usuario: UsuarioRead                   # Datos del usuario para mostrar en pantalla

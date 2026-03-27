@@ -1,3 +1,4 @@
+# database.py
 import os
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
@@ -26,15 +27,22 @@ SessionLocal = sessionmaker(
 class Base(DeclarativeBase):
     pass
 
-from models.libro import Libro          # ← AGREGADO
-Base.metadata.create_all(bind=engine)  # ← AGREGADO
+# Importamos los modelos DESPUÉS de definir Base
+# para que SQLAlchemy los registre antes de crear las tablas
+from models.libro import Libro
+from models.usuario import Usuario
+
+# Crea todas las tablas en la BD si no existen
+# Lee todos los modelos importados arriba y genera sus tablas
+Base.metadata.create_all(bind=engine)
 
 def get_db():
+    # Abre una sesión de base de datos
     db = SessionLocal()
     try:
-        yield db
+        yield db      # La entrega al endpoint que la pidió
     finally:
-        db.close()
+        db.close()    # La cierra siempre, haya error o no
 
 if __name__ == "__main__":
     print(f"Conectando a: {settings.DATABASE_URL}")
