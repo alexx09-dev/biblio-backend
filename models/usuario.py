@@ -14,6 +14,6 @@ class Usuario(Base):
     foto_perfil      = Column(String(500), nullable=True)
     avatar_config    = Column(Text, nullable=True)
     bio              = Column(String(500), nullable=True)
+    generos_favoritos = Column(String(500), nullable=True)  # ← NUEVO
 
-    # Relación inversa con libros
     libros = relationship("Libro", back_populates="usuario")

@@ -98,6 +98,7 @@ class UsuarioRead(BaseModel):
     foto_perfil: Optional[str] = None
     avatar_config: Optional[str] = None
     bio: Optional[str] = None
+    generos_favoritos: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -106,6 +107,7 @@ class UsuarioUpdate(BaseModel):
     foto_perfil: Optional[str] = None
     avatar_config: Optional[str] = None
     bio: Optional[str] = None
+    generos_favoritos: Optional[str] = None
 
 class TokenResponse(BaseModel):
     access_token: str
