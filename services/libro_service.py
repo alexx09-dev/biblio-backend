@@ -5,9 +5,87 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from typing import Optional
 
+import httpx  # [FASE 4A]
+
 from models.libro import Libro
 from schemas import LibroCreate, LibroUpdate
 from logger import logger
+
+
+# [FASE 4A] -------------------------------------------------------------------
+def buscar_sinopsis_open_library(isbn: str) -> Optional[str]:
+    """
+    Consulta Open Library para obtener la sinopsis de un libro por ISBN.
+
+    Estrategia:
+    1. Intenta extraer 'excerpts[0].text' (fragmento editorial)
+    2. Si no hay, intenta 'description' (puede ser str o dict con 'value')
+    3. Si no hay nada o hay error → devuelve None
+
+    Timeout de 5 segundos para no bloquear el endpoint si Open Library tarda.
+    """
+    url = (
+        f"https://openlibrary.org/api/books"
+        f"?bibkeys=ISBN:{isbn}&format=json&jscmd=data"
+    )
+
+    try:
+        logger.info(f"buscar_sinopsis_open_library → consultando ISBN={isbn}")
+        response = httpx.get(url, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+
+        clave = f"ISBN:{isbn}"
+        libro_data = data.get(clave)
+
+        if not libro_data:
+            logger.warning(
+                f"buscar_sinopsis_open_library → ISBN={isbn} no encontrado en Open Library"
+            )
+            return None
+
+        # Intento 1: excerpts (fragmento editorial)
+        excerpts = libro_data.get("excerpts")
+        if excerpts and isinstance(excerpts, list):
+            texto = excerpts[0].get("text")
+            if texto:
+                logger.info(
+                    f"buscar_sinopsis_open_library → sinopsis desde 'excerpts' ISBN={isbn}"
+                )
+                return texto
+
+        # Intento 2: description (str o dict)
+        description = libro_data.get("description")
+        if description:
+            if isinstance(description, str):
+                logger.info(
+                    f"buscar_sinopsis_open_library → sinopsis desde 'description' (str) ISBN={isbn}"
+                )
+                return description
+            if isinstance(description, dict):
+                texto = description.get("value")
+                if texto:
+                    logger.info(
+                        f"buscar_sinopsis_open_library → sinopsis desde 'description' (dict) ISBN={isbn}"
+                    )
+                    return texto
+
+        logger.warning(
+            f"buscar_sinopsis_open_library → sin sinopsis disponible para ISBN={isbn}"
+        )
+        return None
+
+    except httpx.TimeoutException:
+        logger.error(
+            f"buscar_sinopsis_open_library → timeout al consultar ISBN={isbn}"
+        )
+        return None
+    except Exception as e:
+        logger.error(
+            f"buscar_sinopsis_open_library → error inesperado ISBN={isbn}: {e}"
+        )
+        return None
+# [FIN FASE 4A] ---------------------------------------------------------------
 
 
 def listar_libros(db: Session) -> list[Libro]:
@@ -67,20 +145,43 @@ def crear_libro(db: Session, datos: LibroCreate) -> Libro:
     return nuevo_libro
 
 
-def obtener_libro_por_id(db: Session, id: int) -> Optional[Libro]:
+def obtener_libro_por_id(db: Session, id: int) -> Optional[dict]:
     """
-    Busca y devuelve un libro por su id.
-    Devuelve None si no existe.
+    Busca un libro por su id y enriquece la respuesta con sinopsis de Open Library.
+
+    Flujo:
+    1. Busca el libro en BD → si no existe devuelve None
+    2. Si tiene ISBN → consulta Open Library en tiempo real
+    3. Construye y devuelve un dict con todos los campos + 'sinopsis'
+
+    El dict es compatible con LibroRead gracias a from_attributes=True.
     """
     libro = db.query(Libro).filter(Libro.id == id).first()
-    if libro:
-        logger.info(
-            f"obtener_libro_por_id → encontrado: id={id} "
-            f"titulo='{libro.titulo}'"
-        )
-    else:
+
+    if not libro:
         logger.warning(f"obtener_libro_por_id → no encontrado: id={id}")
-    return libro
+        return None
+
+    logger.info(
+        f"obtener_libro_por_id → encontrado: id={id} titulo='{libro.titulo}'"
+    )
+
+    # [FASE 4A] Consultar sinopsis si hay ISBN, sino None directamente
+    sinopsis = None
+    if libro.isbn:
+        sinopsis = buscar_sinopsis_open_library(libro.isbn)
+
+    # Construir dict enriquecido — Pydantic lo valida con from_attributes=True
+    return {
+        "id": libro.id,
+        "titulo": libro.titulo,
+        "autor": libro.autor,
+        "isbn": libro.isbn,
+        "genero": libro.genero,
+        "anio": libro.anio,
+        "rating": libro.rating,
+        "sinopsis": sinopsis,  # [FASE 4A]
+    }
 
 
 def actualizar_libro(
@@ -115,7 +216,6 @@ def actualizar_libro(
     return libro
 
 
-# [NUEVO]
 def eliminar_libro(db: Session, id: int) -> Optional[bool]:
     """
     Elimina un libro de la base de datos por su id.
@@ -123,38 +223,18 @@ def eliminar_libro(db: Session, id: int) -> Optional[bool]:
     Flujo:
     1. Busca el libro por id
     2. Si no existe → devuelve None (el endpoint lanzará 404)
-    3. Elimina el objeto de la sesión
-    4. Confirma la transacción → el DELETE se ejecuta en MySQL
-    5. Devuelve True para indicar que la eliminación fue exitosa
-
-    Args:
-        db: Sesión activa de SQLAlchemy
-        id: Id del libro a eliminar
-
-    Returns:
-        True si se eliminó correctamente, None si no existía
+    3. Elimina el objeto de la sesión y confirma la transacción
+    4. Devuelve True para indicar éxito
     """
-
-    # Paso 1: verificar que el libro existe antes de intentar eliminarlo
     libro = db.query(Libro).filter(Libro.id == id).first()
 
     if not libro:
         logger.warning(f"eliminar_libro → no encontrado: id={id}")
         return None
 
-    # Guardar el título para el log antes de eliminar el objeto
     titulo = libro.titulo
-
-    # Paso 2: marcar el objeto para eliminación en la sesión
-    # db.delete() registra la intención — aún no ejecuta el DELETE en MySQL
     db.delete(libro)
-
-    # Paso 3: confirmar la transacción → ejecuta el DELETE en MySQL
     db.commit()
 
-    logger.info(
-        f"eliminar_libro → eliminado: id={id} titulo='{titulo}'"
-    )
-
-    # Devolvemos True para que el endpoint sepa que la operación fue exitosa
+    logger.info(f"eliminar_libro → eliminado: id={id} titulo='{titulo}'")
     return True

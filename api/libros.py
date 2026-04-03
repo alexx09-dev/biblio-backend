@@ -12,13 +12,10 @@ from services.libro_service import (
     crear_libro,
     obtener_libro_por_id,
     actualizar_libro,
-    eliminar_libro,          # [NUEVO]
+    eliminar_libro,
 )
 from logger import logger
 
-# ---------------------------------------------------------------------------
-# Router con prefijo /api/libros
-# ---------------------------------------------------------------------------
 router = APIRouter(
     prefix="/api/libros",
     tags=["Libros"],
@@ -45,6 +42,9 @@ def listar_libros(
     - GET /api/libros?genero=Terror               → filtrado por género
     - GET /api/libros?busqueda=garcia             → búsqueda por título o autor
     - GET /api/libros?genero=Terror&busqueda=casa → combinado
+
+    Nota: este endpoint NO incluye sinopsis (rendimiento).
+    La sinopsis solo se carga en GET /api/libros/{id}.
     """
     logger.info(f"GET /api/libros → genero='{genero}' busqueda='{busqueda}'")
     return filtrar_libros(db, genero=genero, busqueda=busqueda)
@@ -77,10 +77,11 @@ def obtener_libro(
     db: Session = Depends(get_db),
 ):
     """
-    Devuelve un libro específico por su id.
+    Devuelve un libro específico por su id, enriquecido con sinopsis de Open Library.
 
-    - Si el libro existe → devuelve el objeto con status 200
-    - Si el libro no existe → devuelve error 404
+    - Si el libro tiene ISBN → consulta Open Library en tiempo real
+    - Si no tiene ISBN o no hay sinopsis disponible → sinopsis: null
+    - Si el libro no existe → 404
     """
     logger.info(f"GET /api/libros/{id}")
     libro = obtener_libro_por_id(db, id)
@@ -112,7 +113,6 @@ def actualizar_libro_endpoint(
     return libro
 
 
-# [NUEVO]
 @router.delete("/{id}", status_code=status.HTTP_200_OK)
 def eliminar_libro_endpoint(
     id: int,
@@ -122,22 +122,13 @@ def eliminar_libro_endpoint(
     Elimina un libro de la biblioteca por su id.
 
     - Si el libro existe → lo elimina y devuelve mensaje de confirmación
-    - Si el libro no existe → devuelve error 404
-
-    No requiere body en el request.
-    La eliminación es permanente — no hay papelera de reciclaje.
+    - Si el libro no existe → 404
     """
     logger.info(f"DELETE /api/libros/{id}")
-
-    # Llamar al servicio de eliminación
     resultado = eliminar_libro(db, id)
-
-    # Si el servicio devuelve None, el libro no existía → 404
     if not resultado:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"No se encontró ningún libro con id={id}",
         )
-
-    # Confirmar la eliminación con un mensaje descriptivo
     return {"mensaje": f"Libro con id={id} eliminado correctamente"}

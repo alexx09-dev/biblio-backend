@@ -12,7 +12,6 @@ class LibroBase(BaseModel):
     isbn: Optional[str] = None
     genero: Optional[str] = None
     anio: Optional[int] = None
-    sinopsis: Optional[str] = None  # ← AGREGADO
 
     @field_validator("titulo", "autor")
     @classmethod
@@ -49,7 +48,6 @@ class LibroUpdate(BaseModel):
     isbn: Optional[str] = None
     genero: Optional[str] = None
     anio: Optional[int] = None
-    sinopsis: Optional[str] = None  # ← AGREGADO
 
     @field_validator("titulo", "autor")
     @classmethod
@@ -75,8 +73,19 @@ class LibroUpdate(BaseModel):
         return valor
 
 
-class LibroRead(LibroBase):
+# [FASE 4A] LibroRead es independiente de LibroBase para poder incluir
+# 'sinopsis' como campo extra que viene del dict enriquecido del servicio,
+# no del objeto ORM (donde esa columna no existe en BD).
+class LibroRead(BaseModel):
     id: int
+    titulo: str
+    autor: str
+    rating: int
+    isbn: Optional[str] = None
+    genero: Optional[str] = None
+    anio: Optional[int] = None
+    sinopsis: Optional[str] = None  # [FASE 4A] viene de Open Library, no de BD
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -86,9 +95,11 @@ class UsuarioCreate(BaseModel):
     password: str
     fecha_nacimiento: Optional[date] = None
 
+
 class UsuarioLogin(BaseModel):
     email: EmailStr
     password: str
+
 
 class UsuarioRead(BaseModel):
     id: int
@@ -102,12 +113,14 @@ class UsuarioRead(BaseModel):
 
     model_config = {"from_attributes": True}
 
+
 class UsuarioUpdate(BaseModel):
     nombre: Optional[str] = None
     foto_perfil: Optional[str] = None
     avatar_config: Optional[str] = None
     bio: Optional[str] = None
     generos_favoritos: Optional[str] = None
+
 
 class TokenResponse(BaseModel):
     access_token: str
