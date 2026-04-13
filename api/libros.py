@@ -1,12 +1,10 @@
 # api/libros.py
-# Router de FastAPI para el recurso Libro
-
 from fastapi import APIRouter, Depends, Query, status, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 
 from database import get_db
-from schemas import LibroRead, LibroCreate, LibroUpdate
+from schemas import LibroRead, LibroCreate, LibroUpdate, FavoritoUpdate
 from services.libro_service import (
     filtrar_libros,
     crear_libro,
@@ -14,8 +12,9 @@ from services.libro_service import (
     actualizar_libro,
     eliminar_libro,
 )
-from services.auth_service import obtener_usuario_actual  # [FASE 5A]
-from models.usuario import Usuario                        # [FASE 5A]
+from services.auth_service import obtener_usuario_actual
+from models.usuario import Usuario
+from models.libro import Libro
 from logger import logger
 
 router = APIRouter(
@@ -26,55 +25,22 @@ router = APIRouter(
 
 @router.get("/", response_model=list[LibroRead])
 def listar_libros(
-    genero: Optional[str] = Query(
-        default=None,
-        description="Filtrar por género literario (ej: Terror, Juvenil)",
-    ),
-    busqueda: Optional[str] = Query(
-        default=None,
-        description="Buscar texto en título o autor (ej: garcia, cien años)",
-    ),
+    genero: Optional[str] = Query(default=None),
+    busqueda: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
-    usuario_actual: Usuario = Depends(obtener_usuario_actual),  # [FASE 5A]
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
 ):
-    """
-    Devuelve los libros del usuario autenticado con filtros opcionales.
-
-    Requiere token JWT en el header: Authorization: Bearer <token>
-
-    Ejemplos de uso:
-    - GET /api/libros                             → todos mis libros
-    - GET /api/libros?genero=Terror               → mis libros de Terror
-    - GET /api/libros?busqueda=garcia             → búsqueda en mis libros
-    - GET /api/libros?genero=Terror&busqueda=casa → combinado
-    """
-    logger.info(
-        f"GET /api/libros → usuario_id={usuario_actual.id} "
-        f"genero='{genero}' busqueda='{busqueda}'"
-    )
-    return filtrar_libros(
-        db,
-        usuario_id=usuario_actual.id,
-        genero=genero,
-        busqueda=busqueda,
-    )
+    logger.info(f"GET /api/libros → usuario_id={usuario_actual.id}")
+    return filtrar_libros(db, usuario_id=usuario_actual.id, genero=genero, busqueda=busqueda)
 
 
 @router.post("/", response_model=LibroRead, status_code=status.HTTP_201_CREATED)
 def crear_libro_endpoint(
     datos: LibroCreate,
     db: Session = Depends(get_db),
-    usuario_actual: Usuario = Depends(obtener_usuario_actual),  # [FASE 5A]
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
 ):
-    """
-    Crea un nuevo libro asociado al usuario autenticado.
-
-    Requiere token JWT en el header: Authorization: Bearer <token>
-    """
-    logger.info(
-        f"POST /api/libros → usuario_id={usuario_actual.id} "
-        f"titulo='{datos.titulo}' autor='{datos.autor}'"
-    )
+    logger.info(f"POST /api/libros → usuario_id={usuario_actual.id}")
     return crear_libro(db, datos, usuario_id=usuario_actual.id)
 
 
@@ -82,23 +48,12 @@ def crear_libro_endpoint(
 def obtener_libro(
     id: int,
     db: Session = Depends(get_db),
-    usuario_actual: Usuario = Depends(obtener_usuario_actual),  # [FASE 5A]
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
 ):
-    """
-    Devuelve un libro del usuario autenticado por su id, con sinopsis.
-
-    Requiere token JWT en el header: Authorization: Bearer <token>
-
-    - Si el libro existe y pertenece al usuario → 200 con sinopsis
-    - Si el libro no existe o pertenece a otro usuario → 404
-    """
     logger.info(f"GET /api/libros/{id} → usuario_id={usuario_actual.id}")
     libro = obtener_libro_por_id(db, id, usuario_id=usuario_actual.id)
     if not libro:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No se encontró ningún libro con id={id}",
-        )
+        raise HTTPException(status_code=404, detail=f"No se encontró ningún libro con id={id}")
     return libro
 
 
@@ -107,20 +62,12 @@ def actualizar_libro_endpoint(
     id: int,
     datos: LibroUpdate,
     db: Session = Depends(get_db),
-    usuario_actual: Usuario = Depends(obtener_usuario_actual),  # [FASE 5A]
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
 ):
-    """
-    Actualiza parcialmente un libro del usuario autenticado.
-
-    Requiere token JWT en el header: Authorization: Bearer <token>
-    """
     logger.info(f"PUT /api/libros/{id} → usuario_id={usuario_actual.id}")
     libro = actualizar_libro(db, id, datos, usuario_id=usuario_actual.id)
     if not libro:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No se encontró ningún libro con id={id}",
-        )
+        raise HTTPException(status_code=404, detail=f"No se encontró ningún libro con id={id}")
     return libro
 
 
@@ -128,21 +75,42 @@ def actualizar_libro_endpoint(
 def eliminar_libro_endpoint(
     id: int,
     db: Session = Depends(get_db),
-    usuario_actual: Usuario = Depends(obtener_usuario_actual),  # [FASE 5A]
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
 ):
-    """
-    Elimina un libro del usuario autenticado por su id.
-
-    Requiere token JWT en el header: Authorization: Bearer <token>
-
-    - Si el libro existe y pertenece al usuario → lo elimina y devuelve confirmación
-    - Si el libro no existe o pertenece a otro usuario → 404
-    """
     logger.info(f"DELETE /api/libros/{id} → usuario_id={usuario_actual.id}")
     resultado = eliminar_libro(db, id, usuario_id=usuario_actual.id)
     if not resultado:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No se encontró ningún libro con id={id}",
-        )
+        raise HTTPException(status_code=404, detail=f"No se encontró ningún libro con id={id}")
     return {"mensaje": f"Libro con id={id} eliminado correctamente"}
+
+
+@router.patch("/{id}/favorito", response_model=LibroRead)
+def toggle_favorito(
+    id: int,
+    datos: FavoritoUpdate,
+    db: Session = Depends(get_db),
+    usuario_actual: Usuario = Depends(obtener_usuario_actual),
+):
+    libro = db.query(Libro).filter(
+        Libro.id == id,
+        Libro.usuario_id == usuario_actual.id
+    ).first()
+
+    if not libro:
+        raise HTTPException(status_code=404, detail=f"No se encontró ningún libro con id={id}")
+
+    libro.es_favorito = datos.es_favorito
+    db.commit()
+    db.refresh(libro)
+
+    return {
+        "id":          libro.id,
+        "titulo":      libro.titulo,
+        "autor":       libro.autor,
+        "rating":      libro.rating,
+        "isbn":        libro.isbn,
+        "genero":      libro.genero,
+        "anio":        libro.anio,
+        "sinopsis":    None,
+        "es_favorito": libro.es_favorito,
+    }

@@ -73,9 +73,6 @@ class LibroUpdate(BaseModel):
         return valor
 
 
-# [FASE 4A] LibroRead es independiente de LibroBase para poder incluir
-# 'sinopsis' como campo extra que viene del dict enriquecido del servicio,
-# no del objeto ORM (donde esa columna no existe en BD).
 class LibroRead(BaseModel):
     id: int
     titulo: str
@@ -84,7 +81,8 @@ class LibroRead(BaseModel):
     isbn: Optional[str] = None
     genero: Optional[str] = None
     anio: Optional[int] = None
-    sinopsis: Optional[str] = None  # [FASE 4A] viene de Open Library, no de BD
+    sinopsis:    Optional[str] = None
+    es_favorito: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -126,3 +124,14 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     usuario: UsuarioRead
+
+
+class UsuarioStats(BaseModel):
+    total_libros: int
+    rating_promedio: float
+    generos_unicos: int
+    autores_unicos: int
+
+
+class FavoritoUpdate(BaseModel):
+    es_favorito: bool
