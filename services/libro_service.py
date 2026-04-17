@@ -4,13 +4,16 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from typing import Optional
-
 import httpx
 
 from models.libro import Libro
 from schemas import LibroCreate, LibroUpdate
 from logger import logger
 
+
+# ---------------------------------------------------------
+# UTILIDADES INTERNAS
+# ---------------------------------------------------------
 
 def _extraer_texto_descripcion(descripcion) -> Optional[str]:
     """
@@ -32,66 +35,109 @@ def _es_espanol(texto: str) -> bool:
     indicadores = [
         " el ", " la ", " los ", " las ", " un ", " una ",
         " de ", " del ", " en ", " es ", " son ", " que ",
-        " con ", " por ", " para ", " una ", " su ", " sus ",
+        " con ", " por ", " para ", " su ", " sus ",
         "ción", "mente", "ñ", "á", "é", "í", "ó", "ú", "¿", "¡"
     ]
     texto_lower = texto.lower()
     return any(ind in texto_lower for ind in indicadores)
 
 
+# ---------------------------------------------------------
+# INTEGRACIÓN EXTERNA
+# ---------------------------------------------------------
+
 def buscar_sinopsis_open_library(isbn: str) -> Optional[str]:
     """
     Busca la sinopsis de un libro en Open Library priorizando español.
-
-    Estrategia en orden:
-    1. Edición del ISBN → ¿tiene descripción en español? → usarla
-    2. Work asociado → ¿tiene descripción en español? → usarla
-    3. Ediciones del Work en español → ¿alguna tiene descripción? → usarla
-    4. Fallback → descripción en inglés si no hay nada en español
-    5. None si no hay nada
     """
 
-    # ------------------------------------------------------------------
-    # PASO 1: Consultar la edición directa por ISBN
-    # ------------------------------------------------------------------
-    url_isbn = (
-        f"https://openlibrary.org/api/books"
-        f"?bibkeys=ISBN:{isbn}&format=json&jscmd=data"
-    )
-
-    sinopsis_ingles = None
+    url = f"https://openlibrary.org/api/books?bibkeys=ISBN:{isbn}&format=json&jscmd=data"
 
     try:
-        logger.info(f"buscar_sinopsis_open_library → consultando ISBN={isbn}")
-        response = httpx.get(url_isbn, timeout=5)
+        logger.info(f"Buscando sinopsis ISBN={isbn}")
+        response = httpx.get(url, timeout=5)
         response.raise_for_status()
         data = response.json()
 
-        clave = f"ISBN:{isbn}"
-        edicion_data = data.get(clave)
+        libro_data = data.get(f"ISBN:{isbn}")
+        if not libro_data:
+            return None
 
-        if edicion_data:
-            excerpts = edicion_data.get("excerpts")
-            if excerpts and isinstance(excerpts, list):
-                texto = excerpts[0].get("text", "").strip()
-                if texto:
-                    if _es_espanol(texto):
-                        logger.info(f"buscar_sinopsis_open_library → excerpts en español ISBN={isbn}")
-                        return texto
-                    sinopsis_ingles = sinopsis_ingles or texto
+        descripcion = libro_data.get("description")
+        texto = _extraer_texto_descripcion(descripcion)
 
-            descripcion = edicion_data.get("description")
-            if descripcion:
-                texto = _extraer_texto_descripcion(descripcion)
-                if texto:
-                    if _es_espanol(texto):
-                        logger.info(f"buscar_sinopsis_open_library → description en español ISBN={isbn}")
-                        return texto
-                    sinopsis_ingles = sinopsis_ingles or texto
+        if texto:
+            return texto
 
-    except httpx.TimeoutException:
-        logger.error(f"buscar_sinopsis_open_library → timeout paso 1 ISBN={isbn}")
     except Exception as e:
-        logger.error(f"buscar_sinopsis_open_library → error paso 1 ISBN={isbn}: {e}")
+        logger.error(f"Error buscando sinopsis ISBN={isbn}: {e}")
 
-    # -----------------------------------------------------
+    return None
+
+
+# ---------------------------------------------------------
+# CRUD
+# ---------------------------------------------------------
+
+def crear_libro(db: Session, libro: LibroCreate) -> Libro:
+    nuevo_libro = Libro(**libro.dict())
+
+    # Intentar enriquecer con sinopsis si hay ISBN
+    if nuevo_libro.isbn:
+        sinopsis = buscar_sinopsis_open_library(nuevo_libro.isbn)
+        if sinopsis:
+            nuevo_libro.descripcion = sinopsis
+
+    db.add(nuevo_libro)
+    db.commit()
+    db.refresh(nuevo_libro)
+
+    return nuevo_libro
+
+
+def obtener_libros(db: Session):
+    return db.query(Libro).all()
+
+
+def obtener_libro_por_id(db: Session, libro_id: int):
+    return db.query(Libro).filter(Libro.id == libro_id).first()
+
+
+def actualizar_libro(db: Session, libro_id: int, datos: LibroUpdate):
+    libro = obtener_libro_por_id(db, libro_id)
+    if not libro:
+        return None
+
+    for campo, valor in datos.dict(exclude_unset=True).items():
+        setattr(libro, campo, valor)
+
+    db.commit()
+    db.refresh(libro)
+
+    return libro
+
+
+def eliminar_libro(db: Session, libro_id: int):
+    libro = obtener_libro_por_id(db, libro_id)
+    if not libro:
+        return False
+
+    db.delete(libro)
+    db.commit()
+    return True
+
+
+# ---------------------------------------------------------
+# FILTRO (SOLUCIONA TU ERROR)
+# ---------------------------------------------------------
+
+def filtrar_libros(db: Session, termino: str):
+    """
+    Filtra libros por título o autor (búsqueda parcial).
+    """
+    return db.query(Libro).filter(
+        or_(
+            Libro.titulo.ilike(f"%{termino}%"),
+            Libro.autor.ilike(f"%{termino}%")
+        )
+    ).all()
