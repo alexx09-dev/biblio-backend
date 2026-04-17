@@ -4,7 +4,6 @@ import sys
 import time
 from sqlalchemy import text
 from database import engine
-from config import settings
 
 
 def esperar_base_de_datos(max_intentos=10, espera=5):
@@ -38,13 +37,11 @@ def ejecutar_comando(comando: list[str], descripcion: str):
 if __name__ == "__main__":
     print("=" * 60)
     print("🚀 INICIANDO PROCESO DE MIGRACIÓN")
-    print(f"   Base de datos: {settings.DATABASE_URL}")
+    print("🐘 Base de datos: PostgreSQL (Neon)")
     print("=" * 60)
 
-    # Paso 1: Esperar a que MySQL esté listo
     esperar_base_de_datos()
 
-    # Paso 2: Aplicar migraciones existentes
     ejecutar_comando(
         ["alembic", "upgrade", "head"],
         "Aplicando migraciones a la base de datos",
