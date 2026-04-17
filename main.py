@@ -11,6 +11,7 @@ from exceptions.handlers import (
 from logger import logger
 from api.libros import router as libros_router
 from api.auth import router as auth_router
+from database import Base, engine
 import os
 
 is_dev = os.getenv("ENVIRONMENT") == "development"
@@ -19,9 +20,9 @@ app = FastAPI(
     title="Biblioteca Personal API",
     description="Backend REST para gestionar tu catálogo de libros personales.",
     version="2.0.0",
-    docs_url="/docs" if is_dev else "/docs",
+    docs_url="/docs" if is_dev else None,
     redoc_url="/redoc" if is_dev else None,
-    openapi_url="/openapi.json" if is_dev else "/openapi.json",
+    openapi_url="/openapi.json" if is_dev else None,
 )
 
 origins_permitidos = [
@@ -46,8 +47,12 @@ app.add_exception_handler(Exception, generic_exception_handler)
 app.include_router(libros_router)
 app.include_router(auth_router)
 
+
 @app.on_event("startup")
 async def startup():
+    # 🔥 CREA LAS TABLAS SI NO EXISTEN
+    Base.metadata.create_all(bind=engine)
+
     logger.info("=" * 50)
     logger.info("🚀 Biblioteca Personal API iniciando...")
     logger.info("📚 Versión: 2.0.0")
@@ -58,6 +63,7 @@ async def startup():
     for origen in origins_permitidos:
         logger.info(f"   → {origen}")
     logger.info("=" * 50)
+
 
 @app.get("/", tags=["Status"])
 def raiz():
