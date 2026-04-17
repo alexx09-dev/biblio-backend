@@ -1,73 +1,25 @@
-# docker-compose.yml
-# Orquesta los servicios de la aplicación: API FastAPI + MySQL 8
-# Ejecutar con: docker-compose up --build
-
 version: "3.9"
 
 services:
-
-  # ---------------------------------------------------------------------------
-  # Servicio de base de datos MySQL 8
-  # ---------------------------------------------------------------------------
-  db:
-    image: mysql:8.0
-    container_name: biblioteca_atlas_db
-
-    environment:
-      MYSQL_ROOT_PASSWORD: admin
-      MYSQL_DATABASE: biblioteca_atlas
-
-    ports:
-      - "3307:3306"
-
-    volumes:
-      - mysql_data:/var/lib/mysql
-
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-padmin"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-
-    networks:
-      - biblioteca_network
-
-  # ---------------------------------------------------------------------------
-  # Servicio de la API FastAPI
-  # ---------------------------------------------------------------------------
   api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: biblioteca_atlas_api
+    container_name: biblioteca_api
 
     environment:
-      DB_USER: root
-      DB_PASSWORD: admin
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_NAME: biblioteca_atlas
+      DATABASE_URL: postgresql+psycopg2://usuario:password@ep-xxxx.neon.tech/neondb?sslmode=require
       APP_NAME: Biblioteca Personal API
       APP_VERSION: 2.0.0
 
-    # Puerto actualizado a 2603
     ports:
       - "2603:2603"
-
-    depends_on:
-      db:
-        condition: service_healthy
 
     networks:
       - biblioteca_network
 
     command: >
-      sh -c "python migrate.py && uvicorn main:app --host 0.0.0.0 --port 2603"
-
-volumes:
-  mysql_data:
-    driver: local
+      sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 2603"
 
 networks:
   biblioteca_network:
