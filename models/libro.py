@@ -18,7 +18,7 @@ class Libro(Base):
     # [FASE 7A] Interruptor de favorito — True = marcado, False = normal
     # default=False → ningún libro nace como favorito
     # server_default="0" → MySQL pone 0 (falso) en filas que ya existen
-    es_favorito = Column(Boolean, default=False, server_default="0", nullable=False)
+    es_favorito = Column(Boolean, default=False, server_default="false", nullable=False)
 
     # Relación con usuario
     usuario_id  = Column(Integer, ForeignKey("usuarios.id"), nullable=True)

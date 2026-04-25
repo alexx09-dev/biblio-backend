@@ -1,5 +1,5 @@
 # database.py
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from config import settings
 
@@ -18,9 +18,6 @@ SessionLocal = sessionmaker(
 
 class Base(DeclarativeBase):
     pass
-
-from models.libro import Libro
-from models.usuario import Usuario
 
 def get_db():
     db = SessionLocal()
