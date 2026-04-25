@@ -1,4 +1,3 @@
-# main.py
 from fastapi import FastAPI
 from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +11,11 @@ from logger import logger
 from api.libros import router as libros_router
 from api.auth import router as auth_router
 from database import Base, engine
+
+# 🔥 IMPORTANTE: registrar modelos para SQLAlchemy
+from models.usuario import Usuario
+from models.libro import Libro
+
 import os
 
 is_dev = os.getenv("ENVIRONMENT") == "development"
