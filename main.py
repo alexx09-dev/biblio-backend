@@ -12,7 +12,7 @@ from api.libros import router as libros_router
 from api.auth import router as auth_router
 from database import Base, engine
 
-# 🔥 IMPORTANTE: registrar modelos para SQLAlchemy
+# 🔥 IMPORTAR MODELOS (NECESARIO PARA ALEMBIC TAMBIÉN)
 from models.usuario import Usuario
 from models.libro import Libro
 
@@ -54,18 +54,11 @@ app.include_router(auth_router)
 
 @app.on_event("startup")
 async def startup():
-    # 🔥 CREA LAS TABLAS SI NO EXISTEN
-    Base.metadata.create_all(bind=engine)
-
     logger.info("=" * 50)
     logger.info("🚀 Biblioteca Personal API iniciando...")
     logger.info("📚 Versión: 2.0.0")
     logger.info(f"🔧 Modo: {'desarrollo' if is_dev else 'producción'}")
-    logger.info(f"📖 Docs: {'habilitada en /docs' if is_dev else 'deshabilitada'}")
     logger.info("🐘 Base de datos: PostgreSQL (Neon)")
-    logger.info("🌐 CORS habilitado para:")
-    for origen in origins_permitidos:
-        logger.info(f"   → {origen}")
     logger.info("=" * 50)
 
 
