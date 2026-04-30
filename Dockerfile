@@ -21,4 +21,4 @@ COPY . .
 EXPOSE 10000
 
 # Comando de arranque (CORREGIDO)
-CMD ["sh", "-c", "python -m alembic upgrade head && python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000}"]
+CMD ["sh", "-c", "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port ${PORT:-10000}"]
