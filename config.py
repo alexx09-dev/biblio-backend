@@ -1,8 +1,12 @@
 from pydantic_settings import BaseSettings
+from typing import Optional
+
 
 class Settings(BaseSettings):
-    DATABASE_URL: str              # Neon (destino)
-    OLD_DATABASE_URL: str          # MySQL (origen)
+    DATABASE_URL: str
+
+    # 🔥 AHORA OPCIONAL
+    OLD_DATABASE_URL: Optional[str] = None
 
     SECRET_KEY: str = "Mdgiwandhwdgmadgwadg"
     ALGORITHM: str = "HS256"
@@ -16,5 +20,6 @@ class Settings(BaseSettings):
         "env_file_encoding": "utf-8",
         "case_sensitive": True,
     }
+
 
 settings = Settings()
